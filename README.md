@@ -2,7 +2,7 @@
 
 A beautiful and efficient tool to manage and clean up your GitHub repositories with ease. Built with React, TypeScript, and Tailwind CSS.
 
-![GitHub Repository Manager](https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?q=80&w=1200&auto=format&fit=crop)
+![GitHub Repository Manager](https://raw.githubusercontent.com/ErolledDev/Repo-Manager/refs/heads/main/public/repo-manager.png)
 
 ## Features
 
