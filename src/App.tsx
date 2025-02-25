@@ -366,5 +366,11 @@ function App() {
     </div>
   );
 }
+    <!--  test widget-->
+    <script src="https://chatwidgetai.netlify.app/widget.js"></script>
+    <script>
+  new BusinessChatPlugin({
+    uid: 'b2387bb3-af91-4e8a-a0a0-22c12dd9f1c6'
+  });
 
 export default App;
