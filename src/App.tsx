@@ -20,7 +20,8 @@ import {
   RefreshCwIcon,
   ExternalLinkIcon,
   ShieldIcon,
-  InfoIcon
+  InfoIcon,
+  MinusCircleIcon
 } from 'lucide-react';
 
 interface Repository {
@@ -50,6 +51,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [showTokenInfo, setShowTokenInfo] = useState(false);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
   const [filters, setFilters] = useState({
     private: false,
     public: false,
@@ -86,7 +88,6 @@ function App() {
   const filterRepositories = () => {
     let filtered = [...repositories];
 
-    // Apply search
     if (searchTerm) {
       filtered = filtered.filter(repo => 
         repo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,19 +95,16 @@ function App() {
       );
     }
 
-    // Apply visibility filters
     if (filters.private && !filters.public) {
       filtered = filtered.filter(repo => repo.private);
     } else if (filters.public && !filters.private) {
       filtered = filtered.filter(repo => !repo.private);
     }
 
-    // Apply language filter
     if (filters.language) {
       filtered = filtered.filter(repo => repo.language === filters.language);
     }
 
-    // Apply sorting
     filtered.sort((a, b) => {
       switch (filters.sortBy) {
         case 'name':
@@ -182,14 +180,16 @@ function App() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete ${selectedRepos.length} repositories? This action cannot be undone!`)) {
-      return;
-    }
+    setDeleteConfirmationOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    setDeleteConfirmationOpen(false);
     setDeleteInProgress(true);
     setError('');
     setSuccess('');
 
+    const selectedRepos = repositories.filter(repo => repo.selected);
     const octokit = new Octokit({ auth: token });
     let successCount = 0;
     let failureCount = 0;
@@ -259,6 +259,22 @@ function App() {
     );
   };
 
+  const removeFromSelection = (id: number) => {
+    setRepositories(repos =>
+      repos.map(repo =>
+        repo.id === id ? { ...repo, selected: false } : repo
+      )
+    );
+    
+    // If no repositories remain selected, close the modal
+    const remainingSelected = repositories.filter(repo => repo.id !== id && repo.selected).length;
+    if (remainingSelected === 0) {
+      setDeleteConfirmationOpen(false);
+    }
+    
+    toast.success('Repository removed from selection');
+  };
+
   const getStatusColor = (status?: 'pending' | 'success' | 'error') => {
     switch (status) {
       case 'pending':
@@ -285,6 +301,8 @@ function App() {
     };
     return colors[language || ''] || 'bg-gray-400';
   };
+
+  const selectedRepositories = repositories.filter(repo => repo.selected);
 
   return (
     <div className={`min-h-screen transition-colors duration-200 ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}>
@@ -553,6 +571,135 @@ function App() {
           </div>
         </footer>
 
+        {/* Delete Confirmation Modal */}
+        <Transition show={deleteConfirmationOpen} as={React.Fragment}>
+          <Dialog
+            as="div"
+            className="fixed inset-0 z-10 overflow-y-auto"
+            onClose={() => setDeleteConfirmationOpen(false)}
+          >
+            <div className="min-h-screen px-4 text-center">
+              <Transition.Child
+                as={React.Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0"
+                enterTo="opacity-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100"
+                leaveTo="opacity-0"
+              >
+                <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-30" />
+              </Transition.Child>
+
+              <span
+                className="inline-block h-screen align-middle"
+                aria-hidden="true"
+              >
+                &#8203;
+              </span>
+
+              <Transition.Child
+                as={React.Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <div className="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white dark:bg-gray-800 shadow-xl rounded-2xl">
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <Dialog.Title
+                        as="h3"
+                        className="text-lg font-medium text-red-600 dark:text-red-400"
+                      >
+                        Confirm Repository Deletion
+                      </Dialog.Title>
+                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        You are about to delete the following repositories. This action cannot be undone.
+                        Click the remove button (
+                        <MinusCircleIcon className="h-4 w-4 inline text-gray-400" />
+                        ) to remove a repository from selection.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setDeleteConfirmationOpen(false)}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <XIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <div className="mt-4 max-h-96 overflow-y-auto">
+                    <div className="space-y-3">
+                      {selectedRepositories.map(repo => (
+                        <div key={repo.id} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg group">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-grow">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="font-medium text-gray-900 dark:text-white">{repo.name}</h4>
+                                  {repo.description && (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                      {repo.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {repo.private && (
+                                    <span className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded">
+                                      Private
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={() => removeFromSelection(repo.id)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full"
+                                    title="Remove from selection"
+                                  >
+                                    <MinusCircleIcon className="h-5 w-5 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400" />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="mt-2 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                                <span>⭐ {repo.stargazers_count} stars</span>
+                                <span>🍴 {repo.forks_count} forks</span>
+                                {repo.language && (
+                                  <span className="flex items-center gap-1">
+                                    <span className={`w-2 h-2 rounded-full ${getLanguageColor(repo.language)}`}></span>
+                                    {repo.language}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end gap-3">
+                    <button
+                      onClick={() => setDeleteConfirmationOpen(false)}
+                      className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors duration-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmDelete}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 flex items-center gap-2"
+                    >
+                      <Trash2Icon className="h-4 w-4" />
+                      Delete {selectedRepositories.length} {selectedRepositories.length === 1 ? 'Repository' : 'Repositories'}
+                    </button>
+                  </div>
+                </div>
+              </Transition.Child>
+            </div>
+          </Dialog>
+        </Transition>
+
+        {/* Filter Modal */}
         <Transition show={filterModalOpen} as={React.Fragment}>
           <Dialog
             as="div"
